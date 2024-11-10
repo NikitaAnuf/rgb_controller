@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 void main() {
@@ -18,10 +19,20 @@ class MyApp extends StatelessWidget {
             backgroundColor: Color.fromARGB(255, 0, 73, 183),
             titleTextStyle: TextStyle(
               color: Colors.white,
-            )),
+            )
+        ),
+        primaryColor: const Color.fromARGB(255, 0, 73, 183),
+        textTheme: const TextTheme(
+          labelSmall: TextStyle(
+            color: Colors.white,
+          )
+        ),
+        iconTheme: const IconThemeData(
+          color: Colors.white,
+        ),
         useMaterial3: true,
       ),
-      home: const BlueToothScreen(),
+      home: const NavigationMenu(),
     );
   }
 }
@@ -86,7 +97,62 @@ class _BlueToothScreenState extends State<BlueToothScreen> {
                   print('Device tapped');
                 });
           },
-        )
+        ),
+      // bottomNavigationBar: const NavigationMenu(),
     );
   }
+}
+
+class NavigationMenu extends StatelessWidget {
+  const NavigationMenu({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final controller = Get.put(NavigationController());
+
+    return Scaffold(
+      bottomNavigationBar: Obx(
+          () => NavigationBar(
+            indicatorColor: theme.primaryColor,
+            selectedIndex: controller.selectedIndex.value,
+            onDestinationSelected: (index) => controller.selectedIndex.value = index,
+            destinations: <Widget>[
+              NavigationDestination(
+                selectedIcon: Icon(
+                  Icons.bluetooth,
+                  color: theme.iconTheme.color,
+                ),
+                icon: const Icon(Icons.bluetooth_outlined),
+                label: 'Подключение',
+              ),
+              NavigationDestination(
+                selectedIcon: Icon(
+                  Icons.list,
+                  color: theme.iconTheme.color,
+                ),
+                icon: const Icon(Icons.list_outlined),
+                label: 'Режимы',
+              ),
+              NavigationDestination(
+                selectedIcon: Icon(
+                  Icons.settings,
+                  color: theme.iconTheme.color,
+                ),
+                icon: const Icon(Icons.settings_outlined),
+                label: 'Настройки',
+              ),
+            ],
+          ),
+      ),
+      body: Obx(() => controller.screens[controller.selectedIndex.value]),
+    );
+  }
+}
+
+class NavigationController extends GetxController{
+  final Rx<int> selectedIndex = 0.obs;
+
+  final screens = [const BlueToothScreen(), Container(color: Colors.blue), Container(color: Colors.red)];
 }
