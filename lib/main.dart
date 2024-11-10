@@ -19,13 +19,31 @@ class MyApp extends StatelessWidget {
             backgroundColor: Color.fromARGB(255, 0, 73, 183),
             titleTextStyle: TextStyle(
               color: Colors.white,
-            )
+            ),
         ),
         primaryColor: const Color.fromARGB(255, 0, 73, 183),
+        primaryColorLight: const Color.fromARGB(255, 187, 187, 187),
+        scaffoldBackgroundColor: Colors.white,
+        navigationBarTheme: NavigationBarThemeData(
+          backgroundColor: Color.fromARGB(255, 245, 245, 245),
+        ),
         textTheme: const TextTheme(
           labelSmall: TextStyle(
             color: Colors.white,
+          ),
+          headlineMedium: TextStyle(
+            color: Colors.black,
+            fontSize: 16,
+          ),
+          labelMedium: TextStyle(
+            color: Colors.grey,
+            fontSize: 14,
           )
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ButtonStyle(
+            backgroundColor: WidgetStateProperty.all(Color.fromARGB(255, 0, 73, 183)),
+          ),
         ),
         iconTheme: const IconThemeData(
           color: Colors.white,
@@ -98,7 +116,115 @@ class _BlueToothScreenState extends State<BlueToothScreen> {
                 });
           },
         ),
-      // bottomNavigationBar: const NavigationMenu(),
+      backgroundColor: theme.scaffoldBackgroundColor,
+    );
+  }
+}
+
+class ModesScreen extends StatefulWidget {
+  const ModesScreen({super.key});
+
+  @override
+  State<ModesScreen> createState() => _ModesScreenState();
+}
+
+class _ModesScreenState extends State<ModesScreen> {
+  @override
+  Widget build(BuildContext context) {
+    ThemeData theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'Режим работы RGB-ленты',
+          style: theme.appBarTheme.titleTextStyle
+        ),
+        backgroundColor: theme.appBarTheme.backgroundColor,
+        centerTitle: true,
+      ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: theme.primaryColorLight,
+                    width: 1,
+                  ),
+                ),
+              child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                        'Параметры Wi-Fi',
+                        style: theme.textTheme.headlineMedium
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+
+                      children: [
+                        Text(
+                          'SSID:',
+                          style: theme.textTheme.labelMedium,
+                        ),
+                        SizedBox(
+                          width: 300,
+                          child: TextFormField(
+                            initialValue: 'SSID',
+                            style: theme.textTheme.labelMedium,
+                            onFieldSubmitted: (text) =>
+                            {
+                              print("$text")
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+
+                      children: [
+                        Text(
+                          'Пароль:',
+                          style: theme.textTheme.labelMedium,
+                        ),
+                        SizedBox(
+                          width: 300,
+                          child: TextFormField(
+                            initialValue: 'Пароль',
+                            style: theme.textTheme.labelMedium,
+                            onFieldSubmitted: (text) =>
+                            {
+                              print("$text")
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    ElevatedButton(
+                      style: theme.elevatedButtonTheme.style,
+                      child: Text(
+                        'Сохранить',
+                        style: theme.textTheme.labelSmall,
+                      ),
+                      onPressed: () => {
+                        print('Pressed')
+                      },
+                    )
+                  ]
+              ),
+            ),
+          ],
+        ),
+      ),
+      backgroundColor: theme.scaffoldBackgroundColor,
     );
   }
 }
@@ -129,21 +255,22 @@ class NavigationMenu extends StatelessWidget {
               ),
               NavigationDestination(
                 selectedIcon: Icon(
-                  Icons.list,
-                  color: theme.iconTheme.color,
-                ),
-                icon: const Icon(Icons.list_outlined),
-                label: 'Режимы',
-              ),
-              NavigationDestination(
-                selectedIcon: Icon(
                   Icons.settings,
                   color: theme.iconTheme.color,
                 ),
                 icon: const Icon(Icons.settings_outlined),
                 label: 'Настройки',
               ),
+              NavigationDestination(
+                selectedIcon: Icon(
+                  Icons.star,
+                  color: theme.iconTheme.color,
+                ),
+                icon: const Icon(Icons.star_outlined),
+                label: 'Эффект',
+              ),
             ],
+            backgroundColor: theme.navigationBarTheme.backgroundColor,
           ),
       ),
       body: Obx(() => controller.screens[controller.selectedIndex.value]),
@@ -152,7 +279,7 @@ class NavigationMenu extends StatelessWidget {
 }
 
 class NavigationController extends GetxController{
-  final Rx<int> selectedIndex = 0.obs;
+  final Rx<int> selectedIndex = 1.obs;
 
-  final screens = [const BlueToothScreen(), Container(color: Colors.blue), Container(color: Colors.red)];
+  final screens = [const BlueToothScreen(), const ModesScreen(), Container(color: Colors.red)];
 }
