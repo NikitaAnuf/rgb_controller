@@ -19,7 +19,8 @@ class MyApp extends StatelessWidget {
             backgroundColor: Color.fromARGB(255, 0, 73, 183),
             titleTextStyle: TextStyle(
               color: Colors.white,
-            )),
+            )
+        ),
         primaryColor: const Color.fromARGB(255, 0, 73, 183),
         primaryColorLight: const Color.fromARGB(255, 187, 187, 187),
         scaffoldBackgroundColor: Colors.white,
@@ -159,6 +160,99 @@ class _BlueToothScreenState extends State<BlueToothScreen> {
   }
 }
 
+class EffectsScreen extends StatefulWidget {
+  const EffectsScreen({super.key});
+
+  @override
+  State<EffectsScreen> createState() => _EffectsScreenState();
+}
+
+class _EffectsScreenState extends State<EffectsScreen> {
+  List<StatefulWidget> effectsScreens = [
+    Effect1Screen()
+  ];
+
+  List<String> effects = ['Effect 1', 'Effect 2', 'Effect 3'];
+
+  late String dropDownValue;
+
+  final controller = Get.put(EffectsController());
+
+  @ override
+  void initState() {
+    dropDownValue = effects[0];
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ThemeData theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Эффекты',
+            style: theme.appBarTheme.titleTextStyle),
+        backgroundColor: theme.appBarTheme.backgroundColor,
+        centerTitle: true,
+      ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  'Список эффектов',
+                  style: theme.textTheme.headlineMedium,
+                ),
+                DropdownButton<String>(
+                  items: effects.map((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  value: dropDownValue,
+                  dropdownColor: theme.navigationBarTheme.backgroundColor,
+                  onChanged: (selectedValue) => {
+                    setState(() {
+                      dropDownValue = selectedValue.toString();
+                      controller.selectedIndex.value = effects.indexOf(dropDownValue);
+                    })
+                  },
+                )
+              ],
+            ),
+            Obx(() => controller.screens[controller.selectedIndex.value])
+          ],
+        ),
+      )
+    );
+  }
+}
+
+class EffectsController extends GetxController {
+  final Rx<int> selectedIndex = 0.obs;
+
+  final screens = [
+    const Effect1Screen(),
+    const Column(
+      children: [
+        Text('Второй эффект', style: TextStyle(color: Colors.red),),
+      ],
+    ),
+    const Column(
+      children: [
+        Text('Третий эффект', style: TextStyle(color: Colors.blue),),
+      ],
+    ),
+  ];
+}
+
 class ModesScreen extends StatefulWidget {
   const ModesScreen({super.key});
 
@@ -167,13 +261,31 @@ class ModesScreen extends StatefulWidget {
 }
 
 class _ModesScreenState extends State<ModesScreen> {
+  String ssid = '';
+  String password = '';
+
+  int brightness = 255;
+
+  bool smoothEffectChange = true;
+  double effectChangeSeconds = 3;
+
+  final ssidController = TextEditingController();
+  final passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    ssidController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     ThemeData theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Режим работы RGB-ленты',
+        title: Text('Общие настройки',
             style: theme.appBarTheme.titleTextStyle),
         backgroundColor: theme.appBarTheme.backgroundColor,
         centerTitle: true,
@@ -196,6 +308,9 @@ class _ModesScreenState extends State<ModesScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    const Padding(
+                      padding: EdgeInsets.all(5),
+                    ),
                     Text('Параметры Wi-Fi',
                         style: theme.textTheme.headlineMedium),
                     Row(
@@ -203,15 +318,14 @@ class _ModesScreenState extends State<ModesScreen> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Text(
-                          'SSID:',
+                          'SSID',
                           style: theme.textTheme.labelMedium,
                         ),
                         SizedBox(
                           width: 300,
                           child: TextFormField(
-                            initialValue: 'SSID',
                             style: theme.textTheme.labelMedium,
-                            onFieldSubmitted: (text) => {print("$text")},
+                            controller: ssidController,
                           ),
                         ),
                       ],
@@ -227,12 +341,14 @@ class _ModesScreenState extends State<ModesScreen> {
                         SizedBox(
                           width: 300,
                           child: TextFormField(
-                            initialValue: 'Пароль',
                             style: theme.textTheme.labelMedium,
-                            onFieldSubmitted: (text) => {print("$text")},
+                            controller: passwordController,
                           ),
                         ),
                       ],
+                    ),
+                    const Padding(
+                        padding: EdgeInsets.all(5),
                     ),
                     ElevatedButton(
                       style: theme.elevatedButtonTheme.style,
@@ -240,10 +356,84 @@ class _ModesScreenState extends State<ModesScreen> {
                         'Сохранить',
                         style: theme.textTheme.labelSmall,
                       ),
-                      onPressed: () => {print('Pressed')},
-                    )
+                      onPressed: () => {
+                        setState(() {
+                          ssid = ssidController.text;
+                          password = passwordController.text;
+                          print('$ssid, $password');
+                        })
+                      },
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.all(5),
+                    ),
                   ]),
             ),
+            const Padding(
+                padding: EdgeInsets.all(10),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  'Яркость свечения',
+                  style: theme.textTheme.headlineMedium,
+                ),
+                Slider(
+                  value: brightness.toDouble(),
+                  min: 0,
+                  max: 255,
+                  label: '$brightness',
+                  divisions: 256,
+                  activeColor: theme.primaryColor,
+                  inactiveColor: theme.navigationBarTheme.backgroundColor,
+                  onChanged: (newBrightness) => {
+                    setState(() {
+                      brightness = newBrightness.toInt();
+                    })
+                  },
+                )
+              ],
+            ),
+            const Padding(
+              padding: EdgeInsets.all(10),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  'Плавная смена (с.)',
+                  style: theme.textTheme.headlineMedium,
+                ),
+                Checkbox(
+                  value: smoothEffectChange,
+                  activeColor: theme.primaryColor,
+                  onChanged: (value) => {
+                    setState(() {
+                      smoothEffectChange = !smoothEffectChange;
+                    })
+                  },
+                ),
+                Slider(
+                  value: effectChangeSeconds,
+                  min: 0.1,
+                  max: 5,
+                  label: '$effectChangeSeconds',
+                  divisions: 49,
+                  activeColor: theme.primaryColor,
+                  inactiveColor: theme.navigationBarTheme.backgroundColor,
+                  onChanged: (newSeconds) => {
+                    setState(() {
+                      // Dart не даёт изменять значение передаваемой переменной, поэтому преобразование сделано через временную
+                      double tmp = newSeconds;
+                      effectChangeSeconds = double.parse(tmp.toStringAsFixed(1));
+                    })
+                  },
+                ),
+              ],
+            )
           ],
         ),
       ),
@@ -323,8 +513,39 @@ class NavigationController extends GetxController {
   final bluetoothController = Get.put(BlueToothController());
 
   final screens = [
-    BlueToothScreen(),
-    Container(),
+    const BlueToothScreen(),
+    const EffectsScreen(),
     const ModesScreen()
   ];
+}
+
+class Effect1Screen extends StatefulWidget {
+  const Effect1Screen({super.key});
+
+  @override
+  State<Effect1Screen> createState() => _Effect1ScreenState();
+}
+
+class _Effect1ScreenState extends State<Effect1Screen> {
+  @override
+  Widget build(BuildContext context) {
+    ThemeData theme = Theme.of(context);
+
+    return Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                      'parameter1',
+                      style: theme.textTheme.headlineMedium,
+                  ),
+                ],
+              )
+            ],
+        );
+  }
 }
