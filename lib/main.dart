@@ -230,7 +230,17 @@ class _EffectsScreenState extends State<EffectsScreen> {
             Obx(() => controller.screens[controller.selectedIndex.value])
           ],
         ),
-      )
+      ),
+      floatingActionButton: FloatingActionButton(
+          backgroundColor: theme.navigationBarTheme.backgroundColor,
+          onPressed: () => {
+            // Вызов функции передачи данных
+          },
+        child: Icon(
+            Icons.power_settings_new,
+            color: theme.primaryColor
+        ),
+      ),
     );
   }
 }
