@@ -19,8 +19,7 @@ class MyApp extends StatelessWidget {
             backgroundColor: Color.fromARGB(255, 0, 73, 183),
             titleTextStyle: TextStyle(
               color: Colors.white,
-            ),
-        ),
+            )),
         primaryColor: const Color.fromARGB(255, 0, 73, 183),
         primaryColorLight: const Color.fromARGB(255, 187, 187, 187),
         scaffoldBackgroundColor: Colors.white,
@@ -28,21 +27,21 @@ class MyApp extends StatelessWidget {
           backgroundColor: Color.fromARGB(255, 245, 245, 245),
         ),
         textTheme: const TextTheme(
-          labelSmall: TextStyle(
-            color: Colors.white,
-          ),
-          headlineMedium: TextStyle(
-            color: Colors.black,
-            fontSize: 16,
-          ),
-          labelMedium: TextStyle(
-            color: Colors.grey,
-            fontSize: 14,
-          )
-        ),
+            labelSmall: TextStyle(
+              color: Colors.white,
+            ),
+            headlineMedium: TextStyle(
+              color: Colors.black,
+              fontSize: 16,
+            ),
+            labelMedium: TextStyle(
+              color: Colors.grey,
+              fontSize: 14,
+            )),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ButtonStyle(
-            backgroundColor: WidgetStateProperty.all(Color.fromARGB(255, 0, 73, 183)),
+            backgroundColor:
+                WidgetStateProperty.all(Color.fromARGB(255, 0, 73, 183)),
           ),
         ),
         iconTheme: const IconThemeData(
@@ -65,23 +64,15 @@ class BlueToothScreen extends StatefulWidget {
 class _BlueToothScreenState extends State<BlueToothScreen> {
   List<BluetoothDevice> devices = [];
 
+  final bluetoothController = Get.find<BlueToothController>();
+
+  final String serviceUUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+  final String characteristicUUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+
   @override
   void initState() {
     super.initState();
     _startScanning();
-  }
-
-  void _startScanning() {
-    FlutterBluePlus.startScan(timeout: const Duration(seconds: 4));
-    FlutterBluePlus.scanResults.listen((results) {
-      for (ScanResult result in results) {
-        if (!devices.contains(result.device)) {
-          setState(() {
-            devices.add(result.device);
-          });
-        }
-      }
-    });
   }
 
   @override
@@ -90,32 +81,79 @@ class _BlueToothScreenState extends State<BlueToothScreen> {
     super.dispose();
   }
 
+  void ConnectToDevice(BluetoothDevice device) async {
+    await device.connect();
+
+    List<BluetoothService> services = await device.discoverServices();
+    for (var service in services) {
+      if (service.uuid.toString() == serviceUUID) {
+        for (var characteristic in service.characteristics) {
+          if (characteristic.uuid.toString() == characteristicUUID) {
+            bluetoothController.targetCharacteristic.value = characteristic;
+            break;
+          }
+        }
+      }
+    }
+    setState(() {
+      bluetoothController.BTDevice.value = device;
+    });
+  }
+
+  void _startScanning() {
+    FlutterBluePlus.startScan(timeout: const Duration(seconds: 4));
+    FlutterBluePlus.scanResults.listen((results) {
+      for (ScanResult result in results) {
+        if (!devices.contains(result.device) && mounted) {
+          setState(() {
+            devices.add(result.device);
+          });
+        }
+      }
+    });
+    for (BluetoothDevice connectedDevice
+        in FlutterBluePlus.connectedDevices.toList()) {
+      if (!devices.contains(connectedDevice) && mounted) {
+        setState(() {
+          devices.add(connectedDevice);
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     ThemeData theme = Theme.of(context);
     return Scaffold(
-        appBar: AppBar(
-          title: Text(
-            'Подключение по BlueTooth',
-            style: theme.appBarTheme.titleTextStyle,
-          ),
-          backgroundColor: theme.appBarTheme.backgroundColor,
-          centerTitle: true,
+      appBar: AppBar(
+        title: Text(
+          'Подключение по BlueTooth',
+          style: theme.appBarTheme.titleTextStyle,
         ),
-        body: ListView.builder(
-          itemCount: devices.length,
-          itemBuilder: (context, index) {
-            return ListTile(
-                title: Text(
-                  devices[index].platformName == '' ? 'Device name undefined' : devices[index].platformName,
-                  style: const TextStyle(color: Colors.black),
-                ),
-                subtitle: Text(devices[index].remoteId.toString()),
-                onTap: () {
-                  print('Device tapped');
-                });
-          },
-        ),
+        backgroundColor: theme.appBarTheme.backgroundColor,
+        centerTitle: true,
+      ),
+      body: ListView.builder(
+        itemCount: devices.length,
+        itemBuilder: (context, index) {
+          return ListTile(
+              title: Text(
+                devices[index].platformName == ''
+                    ? 'Device name undefined'
+                    : devices[index].platformName,
+                style: const TextStyle(color: Colors.black),
+              ),
+              subtitle: Text(devices[index].remoteId.toString()),
+              trailing:
+                  bluetoothController.BTDevice.value?.remoteId.toString() ==
+                          devices[index].remoteId.toString()
+                      ? Icon(Icons.check, color: Colors.green)
+                      : null,
+              onTap: () {
+                ConnectToDevice(devices[index]);
+              });
+        },
+      ),
       backgroundColor: theme.scaffoldBackgroundColor,
     );
   }
@@ -135,10 +173,8 @@ class _ModesScreenState extends State<ModesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Режим работы RGB-ленты',
-          style: theme.appBarTheme.titleTextStyle
-        ),
+        title: Text('Режим работы RGB-ленты',
+            style: theme.appBarTheme.titleTextStyle),
         backgroundColor: theme.appBarTheme.backgroundColor,
         centerTitle: true,
       ),
@@ -150,24 +186,21 @@ class _ModesScreenState extends State<ModesScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             DecoratedBox(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: theme.primaryColorLight,
-                    width: 1,
-                  ),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: theme.primaryColorLight,
+                  width: 1,
                 ),
+              ),
               child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                        'Параметры Wi-Fi',
-                        style: theme.textTheme.headlineMedium
-                    ),
+                    Text('Параметры Wi-Fi',
+                        style: theme.textTheme.headlineMedium),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       crossAxisAlignment: CrossAxisAlignment.center,
-
                       children: [
                         Text(
                           'SSID:',
@@ -178,10 +211,7 @@ class _ModesScreenState extends State<ModesScreen> {
                           child: TextFormField(
                             initialValue: 'SSID',
                             style: theme.textTheme.labelMedium,
-                            onFieldSubmitted: (text) =>
-                            {
-                              print("$text")
-                            },
+                            onFieldSubmitted: (text) => {print("$text")},
                           ),
                         ),
                       ],
@@ -189,7 +219,6 @@ class _ModesScreenState extends State<ModesScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       crossAxisAlignment: CrossAxisAlignment.center,
-
                       children: [
                         Text(
                           'Пароль:',
@@ -200,10 +229,7 @@ class _ModesScreenState extends State<ModesScreen> {
                           child: TextFormField(
                             initialValue: 'Пароль',
                             style: theme.textTheme.labelMedium,
-                            onFieldSubmitted: (text) =>
-                            {
-                              print("$text")
-                            },
+                            onFieldSubmitted: (text) => {print("$text")},
                           ),
                         ),
                       ],
@@ -214,12 +240,9 @@ class _ModesScreenState extends State<ModesScreen> {
                         'Сохранить',
                         style: theme.textTheme.labelSmall,
                       ),
-                      onPressed: () => {
-                        print('Pressed')
-                      },
+                      onPressed: () => {print('Pressed')},
                     )
-                  ]
-              ),
+                  ]),
             ),
           ],
         ),
@@ -240,46 +263,68 @@ class NavigationMenu extends StatelessWidget {
 
     return Scaffold(
       bottomNavigationBar: Obx(
-          () => NavigationBar(
-            indicatorColor: theme.primaryColor,
-            selectedIndex: controller.selectedIndex.value,
-            onDestinationSelected: (index) => controller.selectedIndex.value = index,
-            destinations: <Widget>[
-              NavigationDestination(
-                selectedIcon: Icon(
-                  Icons.bluetooth,
-                  color: theme.iconTheme.color,
-                ),
-                icon: const Icon(Icons.bluetooth_outlined),
-                label: 'Подключение',
+        () => NavigationBar(
+          indicatorColor: theme.primaryColor,
+          selectedIndex: controller.selectedIndex.value,
+          onDestinationSelected: (index) =>
+              controller.selectedIndex.value = index,
+          destinations: <Widget>[
+            NavigationDestination(
+              selectedIcon: Icon(
+                Icons.bluetooth,
+                color: theme.iconTheme.color,
               ),
-              NavigationDestination(
-                selectedIcon: Icon(
-                  Icons.settings,
-                  color: theme.iconTheme.color,
-                ),
-                icon: const Icon(Icons.settings_outlined),
-                label: 'Настройки',
+              icon: const Icon(Icons.bluetooth_outlined),
+              label: 'Подключение',
+            ),
+            NavigationDestination(
+              selectedIcon: Icon(
+                Icons.star,
+                color: theme.iconTheme.color,
               ),
-              NavigationDestination(
-                selectedIcon: Icon(
-                  Icons.star,
-                  color: theme.iconTheme.color,
-                ),
-                icon: const Icon(Icons.star_outlined),
-                label: 'Эффект',
+              icon: const Icon(Icons.star_outlined),
+              label: 'Эффект',
+            ),
+            NavigationDestination(
+              selectedIcon: Icon(
+                Icons.settings,
+                color: theme.iconTheme.color,
               ),
-            ],
-            backgroundColor: theme.navigationBarTheme.backgroundColor,
-          ),
+              icon: const Icon(Icons.settings_outlined),
+              label: 'Настройки',
+            )
+          ],
+          backgroundColor: theme.navigationBarTheme.backgroundColor,
+        ),
       ),
       body: Obx(() => controller.screens[controller.selectedIndex.value]),
     );
   }
 }
 
-class NavigationController extends GetxController{
+
+
+void sendBytes(List<int> byteArray, int size)
+{
+  Get.put(BlueToothController()).targetCharacteristic.value!.write(byteArray.sublist(0, size));
+}
+
+
+
+class BlueToothController extends GetxController {
+  Rx<BluetoothDevice?> BTDevice = Rx<BluetoothDevice?>(null);
+  Rx<BluetoothCharacteristic?> targetCharacteristic =
+      Rx<BluetoothCharacteristic?>(null);
+}
+
+class NavigationController extends GetxController {
   final Rx<int> selectedIndex = 1.obs;
 
-  final screens = [const BlueToothScreen(), const ModesScreen(), Container(color: Colors.red)];
+  final bluetoothController = Get.put(BlueToothController());
+
+  final screens = [
+    BlueToothScreen(),
+    Container(),
+    const ModesScreen()
+  ];
 }
