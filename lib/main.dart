@@ -1,6 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:rgb_controller/EffectScreens/RainbowEffectScreen.dart';
+import 'DataHelper.dart';
+import 'EffectScreens/AuroraEffectScreen.dart';
+import 'EffectScreens/ColoredStripsEffectScreen.dart';
+import 'EffectScreens/SolidColorEffectScreen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -13,14 +20,14 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Flutter RGB Controller App',
       theme: ThemeData(
         appBarTheme: const AppBarTheme(
             backgroundColor: Color.fromARGB(255, 0, 73, 183),
             titleTextStyle: TextStyle(
               color: Colors.white,
-            )
-        ),
+            )),
         primaryColor: const Color.fromARGB(255, 0, 73, 183),
         primaryColorLight: const Color.fromARGB(255, 187, 187, 187),
         scaffoldBackgroundColor: Colors.white,
@@ -169,16 +176,20 @@ class EffectsScreen extends StatefulWidget {
 
 class _EffectsScreenState extends State<EffectsScreen> {
   List<StatefulWidget> effectsScreens = [
-    Effect1Screen()
+    SolidColorEffectScreen(),
+    RainbowEffectScreen(),
+    AuroraEffectScreen(),
+    ColoredStripsEffectScreen()
   ];
 
-  List<String> effects = ['Effect 1', 'Effect 2', 'Effect 3'];
+  List<String> effects = ['Solid Color', 'Rainbow', 'Aurora', 'Colored Strips'];
 
   late String dropDownValue;
 
   final controller = Get.put(EffectsController());
+  var btController = Get.put(BlueToothController());
 
-  @ override
+  @override
   void initState() {
     dropDownValue = effects[0];
     super.initState();
@@ -189,8 +200,7 @@ class _EffectsScreenState extends State<EffectsScreen> {
     ThemeData theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text('Эффекты',
-            style: theme.appBarTheme.titleTextStyle),
+        title: Text('Эффекты', style: theme.appBarTheme.titleTextStyle),
         backgroundColor: theme.appBarTheme.backgroundColor,
         centerTitle: true,
       ),
@@ -221,25 +231,30 @@ class _EffectsScreenState extends State<EffectsScreen> {
                   onChanged: (selectedValue) => {
                     setState(() {
                       dropDownValue = selectedValue.toString();
-                      controller.selectedIndex.value = effects.indexOf(dropDownValue);
+                      controller.selectedIndex.value =
+                          effects.indexOf(dropDownValue);
                     })
                   },
                 )
               ],
             ),
-            Obx(() => controller.screens[controller.selectedIndex.value])
+            Expanded(
+                child: Obx(
+                    () => controller.screens[controller.selectedIndex.value]))
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-          backgroundColor: theme.navigationBarTheme.backgroundColor,
-          onPressed: () => {
-            // Вызов функции передачи данных
-          },
-        child: Icon(
-            Icons.power_settings_new,
-            color: theme.primaryColor
-        ),
+        backgroundColor: theme.navigationBarTheme.backgroundColor,
+        onPressed: () {
+          List<int> bytes = List.filled(21, 0);
+          bytes[0] = 64;
+          int bitPosition = 2;
+          bitPosition = appendByteArray(0, [0, 0, 0, 0], bytes, bitPosition);
+          btController.targetCharacteristic.value!
+              .write(bytes.sublist(0, (bitPosition / 8.0).ceil()));
+        },
+        child: Icon(Icons.power_settings_new, color: theme.primaryColor),
       ),
     );
   }
@@ -249,34 +264,69 @@ class EffectsController extends GetxController {
   final Rx<int> selectedIndex = 0.obs;
 
   final screens = [
-    const Effect1Screen(),
-    const Column(
-      children: [
-        Text('Второй эффект', style: TextStyle(color: Colors.red),),
-      ],
-    ),
-    const Column(
-      children: [
-        Text('Третий эффект', style: TextStyle(color: Colors.blue),),
-      ],
-    ),
+    const SolidColorEffectScreen(),
+    const RainbowEffectScreen(),
+    const AuroraEffectScreen(),
+    const ColoredStripsEffectScreen()
   ];
 }
 
-class ModesScreen extends StatefulWidget {
-  const ModesScreen({super.key});
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
 
   @override
-  State<ModesScreen> createState() => _ModesScreenState();
+  State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _ModesScreenState extends State<ModesScreen> {
+class _SettingsScreenState extends State<SettingsScreen> {
   String ssid = '';
   String password = '';
 
   int brightness = 255;
+  int? lastSentBrightnessValue;
+  Timer? sentTimer;
 
-  bool smoothEffectChange = true;
+  var btController = Get.put(BlueToothController());
+  var globalSettingsController = Get.put(GlobalSettingsController());
+
+  DateTime lastSendTime = DateTime.now();
+
+  void setBrightness(int value) {
+    List<int> bytes = List.filled(9, 0);
+    bytes[0] = 128;
+    int bitPosition = 2;
+    bitPosition = appendByteArray(1, [value], bytes, bitPosition);
+    btController.targetCharacteristic.value!
+        .write(bytes.sublist(0, (bitPosition / 8.0).ceil()));
+  }
+
+  void onBrightnessSliderChanged(double value) {
+    setState(() {
+      brightness = value.toInt();
+    });
+
+    sentTimer?.cancel();
+
+    final now = DateTime.now();
+    // Запускаем таймер, который выполнит проверку через 0.1 секунды
+    sentTimer = Timer(Duration(milliseconds: 100), () {
+      if (lastSentBrightnessValue != brightness) {
+        lastSendTime = now;
+        setBrightness(brightness);
+        lastSentBrightnessValue = brightness;
+      }
+    });
+
+    // Проверяем, прошло ли достаточно времени и отличается ли значение
+    if (now.difference(lastSendTime).inMilliseconds >= 100) {
+      if (lastSentBrightnessValue != brightness) {
+        lastSendTime = now;
+        setBrightness(brightness);
+        lastSentBrightnessValue = brightness;
+      }
+    }
+  }
+
   double effectChangeSeconds = 3;
 
   final ssidController = TextEditingController();
@@ -295,8 +345,7 @@ class _ModesScreenState extends State<ModesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Общие настройки',
-            style: theme.appBarTheme.titleTextStyle),
+        title: Text('Общие настройки', style: theme.appBarTheme.titleTextStyle),
         backgroundColor: theme.appBarTheme.backgroundColor,
         centerTitle: true,
       ),
@@ -307,80 +356,80 @@ class _ModesScreenState extends State<ModesScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            DecoratedBox(
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: theme.primaryColorLight,
-                  width: 1,
-                ),
-              ),
-              child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.all(5),
-                    ),
-                    Text('Параметры Wi-Fi',
-                        style: theme.textTheme.headlineMedium),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          'SSID',
-                          style: theme.textTheme.labelMedium,
-                        ),
-                        SizedBox(
-                          width: 300,
-                          child: TextFormField(
-                            style: theme.textTheme.labelMedium,
-                            controller: ssidController,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Пароль:',
-                          style: theme.textTheme.labelMedium,
-                        ),
-                        SizedBox(
-                          width: 300,
-                          child: TextFormField(
-                            style: theme.textTheme.labelMedium,
-                            controller: passwordController,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Padding(
-                        padding: EdgeInsets.all(5),
-                    ),
-                    ElevatedButton(
-                      style: theme.elevatedButtonTheme.style,
-                      child: Text(
-                        'Сохранить',
-                        style: theme.textTheme.labelSmall,
-                      ),
-                      onPressed: () => {
-                        setState(() {
-                          ssid = ssidController.text;
-                          password = passwordController.text;
-                          print('$ssid, $password');
-                        })
-                      },
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.all(5),
-                    ),
-                  ]),
-            ),
+            // DecoratedBox(
+            //   decoration: BoxDecoration(
+            //     border: Border.all(
+            //       color: theme.primaryColorLight,
+            //       width: 1,
+            //     ),
+            //   ),
+            //   child: Column(
+            //       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            //       crossAxisAlignment: CrossAxisAlignment.center,
+            //       children: [
+            //         const Padding(
+            //           padding: EdgeInsets.all(5),
+            //         ),
+            //         Text('Параметры Wi-Fi',
+            //             style: theme.textTheme.headlineMedium),
+            //         Row(
+            //           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            //           crossAxisAlignment: CrossAxisAlignment.center,
+            //           children: [
+            //             Text(
+            //               'SSID',
+            //               style: theme.textTheme.labelMedium,
+            //             ),
+            //             SizedBox(
+            //               width: 300,
+            //               child: TextFormField(
+            //                 style: theme.textTheme.labelMedium,
+            //                 controller: ssidController,
+            //               ),
+            //             ),
+            //           ],
+            //         ),
+            //         Row(
+            //           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            //           crossAxisAlignment: CrossAxisAlignment.center,
+            //           children: [
+            //             Text(
+            //               'Пароль:',
+            //               style: theme.textTheme.labelMedium,
+            //             ),
+            //             SizedBox(
+            //               width: 300,
+            //               child: TextFormField(
+            //                 style: theme.textTheme.labelMedium,
+            //                 controller: passwordController,
+            //               ),
+            //             ),
+            //           ],
+            //         ),
+            //         const Padding(
+            //           padding: EdgeInsets.all(5),
+            //         ),
+            //         ElevatedButton(
+            //           style: theme.elevatedButtonTheme.style,
+            //           child: Text(
+            //             'Сохранить',
+            //             style: theme.textTheme.labelSmall,
+            //           ),
+            //           onPressed: () => {
+            //             setState(() {
+            //               ssid = ssidController.text;
+            //               password = passwordController.text;
+            //               print('$ssid, $password');
+            //             })
+            //           },
+            //         ),
+            //         const Padding(
+            //           padding: EdgeInsets.all(5),
+            //         ),
+            //       ]),
+            // ),
             const Padding(
-                padding: EdgeInsets.all(10),
+              padding: EdgeInsets.all(10),
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -398,11 +447,7 @@ class _ModesScreenState extends State<ModesScreen> {
                   divisions: 256,
                   activeColor: theme.primaryColor,
                   inactiveColor: theme.navigationBarTheme.backgroundColor,
-                  onChanged: (newBrightness) => {
-                    setState(() {
-                      brightness = newBrightness.toInt();
-                    })
-                  },
+                  onChanged: onBrightnessSliderChanged,
                 )
               ],
             ),
@@ -418,11 +463,12 @@ class _ModesScreenState extends State<ModesScreen> {
                   style: theme.textTheme.headlineMedium,
                 ),
                 Checkbox(
-                  value: smoothEffectChange,
+                  value: globalSettingsController.smoothEffectChanging.value,
                   activeColor: theme.primaryColor,
                   onChanged: (value) => {
                     setState(() {
-                      smoothEffectChange = !smoothEffectChange;
+                      globalSettingsController.smoothEffectChanging.value =
+                          !globalSettingsController.smoothEffectChanging.value;
                     })
                   },
                 ),
@@ -434,12 +480,21 @@ class _ModesScreenState extends State<ModesScreen> {
                   divisions: 49,
                   activeColor: theme.primaryColor,
                   inactiveColor: theme.navigationBarTheme.backgroundColor,
-                  onChanged: (newSeconds) => {
+                  onChanged: (newSeconds) {
                     setState(() {
-                      // Dart не даёт изменять значение передаваемой переменной, поэтому преобразование сделано через временную
-                      double tmp = newSeconds;
-                      effectChangeSeconds = double.parse(tmp.toStringAsFixed(1));
-                    })
+                      effectChangeSeconds = double.parse(newSeconds.toStringAsFixed(1));
+                    });
+                  },
+                  onChangeEnd: (newSeconds) {
+                    setState(() {
+                      effectChangeSeconds = double.parse(newSeconds.toStringAsFixed(1));
+                    });
+                    List<int> bytes = List.filled(9, 0);
+                    bytes[0] = 128;
+                    int bitPosition = 2;
+                    bitPosition = appendByteArray(2, [(effectChangeSeconds * 1000).toInt()], bytes, bitPosition);
+                    btController.targetCharacteristic.value!
+                        .write(bytes.sublist(0, (bitPosition / 8.0).ceil()));
                   },
                 ),
               ],
@@ -502,14 +557,9 @@ class NavigationMenu extends StatelessWidget {
   }
 }
 
-
-
-void sendBytes(List<int> byteArray, int size)
-{
-  Get.put(BlueToothController()).targetCharacteristic.value!.write(byteArray.sublist(0, size));
+class GlobalSettingsController extends GetxController {
+  Rx<bool> smoothEffectChanging = Rx<bool>(true);
 }
-
-
 
 class BlueToothController extends GetxController {
   Rx<BluetoothDevice?> BTDevice = Rx<BluetoothDevice?>(null);
@@ -525,37 +575,6 @@ class NavigationController extends GetxController {
   final screens = [
     const BlueToothScreen(),
     const EffectsScreen(),
-    const ModesScreen()
+    const SettingsScreen()
   ];
-}
-
-class Effect1Screen extends StatefulWidget {
-  const Effect1Screen({super.key});
-
-  @override
-  State<Effect1Screen> createState() => _Effect1ScreenState();
-}
-
-class _Effect1ScreenState extends State<Effect1Screen> {
-  @override
-  Widget build(BuildContext context) {
-    ThemeData theme = Theme.of(context);
-
-    return Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                      'parameter1',
-                      style: theme.textTheme.headlineMedium,
-                  ),
-                ],
-              )
-            ],
-        );
-  }
 }

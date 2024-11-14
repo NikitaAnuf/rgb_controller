@@ -25,3 +25,8 @@ int appendByteArray(int effectIndex, List<int> values, List<int> byteArray, int 
 
   return bitPosition;
 }
+
+// void sendBytes(List<int> byteArray, int size)
+// {
+//   Get.put(BlueToothController()).targetCharacteristic.value!.write(byteArray.sublist(0, size));
+// }
